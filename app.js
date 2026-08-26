@@ -357,7 +357,7 @@ const Auth = {
     }
   },
 
-  onLogin() {
+/*  onLogin() {
     // ✅ FIX #4: Safety check before proceeding
     if (!state.user || !state.profile || !state.wallet) {
       console.error('Missing data on login', { user: !!state.user, profile: !!state.profile, wallet: !!state.wallet });
@@ -368,8 +368,12 @@ const Auth = {
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
     App.init();
-  },
-
+  },*/
+onLogin() {
+    document.getElementById('authScreen').classList.add('hidden');
+    document.getElementById('mainApp').classList.remove('hidden');
+    App.init();
+},
   async signOut() {
     if (!state.isDemo && sb) {
       try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
