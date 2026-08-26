@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0b0f">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>CryptoVault - Wallet</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.2/dist/gsap.min.js"></script>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container" id="app">
+
+    <!-- ============ AUTH SCREEN ============ -->
+    <div id="authScreen" class="auth-screen">
+      <div class="auth-logo">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>
+      </div>
+      <h1 class="auth-title" id="authTitle">Welcome Back</h1>
+      <p class="auth-subtitle" id="authSubtitle">Sign in to your CryptoVault wallet</p>
+      <div class="auth-error" id="authError"></div>
+      <form class="auth-form" id="authForm">
+        <div class="auth-input-group" id="usernameGroup" style="display:none">
+          <input type="text" class="auth-input" id="authUsername" placeholder="Username" autocomplete="username">
+        </div>
+        <div class="auth-input-group">
+          <input type="email" class="auth-input" id="authEmail" placeholder="Email address" autocomplete="email" required>
+        </div>
+        <div class="auth-input-group">
+          <input type="password" class="auth-input" id="authPassword" placeholder="Password" autocomplete="current-password" required>
+        </div>
+        <button type="submit" class="auth-btn" id="authBtn">
+          <span id="authBtnText">Sign In</span>
+        </button>
+      </form>
+      <p class="auth-toggle" id="authToggle">
+        Don't have an account? <a id="authToggleLink">Create one</a>
+      </p>
+    </div>
+
+    <!-- ============ MAIN APP ============ -->
+    <div id="mainApp" class="hidden">
+
+      <!-- Header -->
+      <header class="app-header">
+        <div>
+          <div class="header-greeting" id="headerGreeting">Good morning</div>
+          <div class="header-name" id="headerName">User</div>
+        </div>
+        <div class="header-actions">
+          <button class="header-icon-btn" id="notifBtn" onclick="UI.openModal('notifModal')">
+            <i data-lucide="bell" style="width:18px;height:18px"></i>
+            <span class="notif-badge hidden" id="notifBadge"></span>
+          </button>
+        </div>
+      </header>
+
+      <!-- ====== HOME SECTION ====== -->
+      <section class="section-content active" id="homeSection">
+        <!-- Daily Reward -->
+        <div class="reward-card" id="rewardCard" onclick="Wallet.claimReward()">
+          <div class="reward-card-left">
+            <span class="reward-icon">🎁</span>
+            <div>
+              <div class="reward-text">Daily Reward Available</div>
+              <div class="reward-sub">Claim free crypto every 24h</div>
+            </div>
+          </div>
+          <span class="reward-btn" id="rewardBtn">Claim</span>
+        </div>
+
+        <!-- Balance Card -->
+        <div class="balance-card">
+          <div class="balance-label">Total Balance</div>
+          <div class="balance-amount" id="totalBalance">₹0.00</div>
+          <div class="balance-change up" id="balanceChange">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m18 15-6-6-6 6"/></svg>
+            <span>+0.00%</span>
+          </div>
+          <div class="balance-chart-wrap">
+            <canvas id="portfolioChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="quick-actions">
+          <div class="quick-action" onclick="UI.openModal('sendModal')">
+            <div class="quick-action-icon send"><i data-lucide="arrow-up-right" style="width:20px;height:20px"></i></div>
+            <span class="quick-action-label">Send</span>
+          </div>
+          <div class="quick-action" onclick="UI.openModal('receiveModal')">
+            <div class="quick-action-icon receive"><i data-lucide="arrow-down-left" style="width:20px;height:20px"></i></div>
+            <span class="quick-action-label">Receive</span>
+          </div>
+          <div class="quick-action" onclick="UI.openModal('withdrawModal')">
+            <div class="quick-action-icon withdraw"><i data-lucide="banknote" style="width:20px;height:20px"></i></div>
+            <span class="quick-action-label">Withdraw</span>
+          </div>
+          <div class="quick-action" onclick="UI.showToast('Swap coming soon','info')">
+            <div class="quick-action-icon swap"><i data-lucide="repeat" style="width:20px;height:20px"></i></div>
+            <span class="quick-action-label">Swap</span>
+          </div>
+        </div>
+
+        <!-- Holdings -->
+        <div class="section-header">
+          <span class="section-title">Your Holdings</span>
+          <span class="section-link" onclick="UI.switchTab('wallet')">See All</span>
+        </div>
+        <div id="homeHoldings">
+          <div class="skeleton skeleton-card"></div>
+        </div>
+
+        <!-- Trending -->
+        <div class="section-header mt-16">
+          <span class="section-title">Trending Coins</span>
+          <span class="section-link" onclick="UI.switchTab('markets')">More</span>
+        </div>
+        <div id="homeTrending">
+          <div class="skeleton skeleton-text w80"></div>
+          <div class="skeleton skeleton-text w60"></div>
+          <div class="skeleton skeleton-text w40"></div>
+        </div>
+
+        <!-- Recent Activity -->
+        <div class="section-header mt-16">
+          <span class="section-title">Recent Activity</span>
+          <span class="section-link" onclick="UI.switchTab('activity')">View All</span>
+        </div>
+        <div class="card" id="homeActivity">
+          <p class="text-muted fs-sm text-center" style="padding:20px 0">No recent activity</p>
+        </div>
+
+        <!-- Disclaimer -->
+        <div class="disclaimer-footer">
+          <p>This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+        </div>
+      </section>
+
+      <!-- ====== MARKETS SECTION ====== -->
+      <section class="section-content" id="marketsSection">
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" placeholder="Search coins..." id="marketSearch" oninput="Market.filter(this.value)">
+        </div>
+        <div class="filter-chips" id="marketFilters">
+          <span class="filter-chip active" onclick="Market.setFilter('all',this)">All</span>
+          <span class="filter-chip" onclick="Market.setFilter('gainers',this)">Gainers</span>
+          <span class="filter-chip" onclick="Market.setFilter('losers',this)">Losers</span>
+          <span class="filter-chip" onclick="Market.setFilter('watchlist',this)">Watchlist</span>
+        </div>
+        <div id="marketList"></div>
+        <div class="disclaimer-footer">
+          <p>This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+        </div>
+      </section>
+
+      <!-- ====== WALLET SECTION ====== -->
+      <section class="section-content" id="walletSection">
+        <div class="balance-card" style="margin-bottom:20px">
+          <div class="balance-label">Wallet Balance</div>
+          <div class="balance-amount" id="walletBalance">₹0.00</div>
+          <div class="balance-change up" id="walletChange">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="m18 15-6-6-6 6"/></svg>
+            <span>+0.00%</span>
+          </div>
+        </div>
+        <div class="section-header">
+          <span class="section-title">All Assets</span>
+        </div>
+        <div id="walletCoinList"></div>
+        <div class="disclaimer-footer">
+          <p>This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+        </div>
+      </section>
+
+      <!-- ====== ACTIVITY SECTION ====== -->
+      <section class="section-content" id="activitySection">
+        <div class="search-bar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+          <input type="text" placeholder="Search transactions..." id="txSearch" oninput="Transaction.filter(this.value)">
+        </div>
+        <div class="filter-chips" id="txFilters">
+          <span class="filter-chip active" onclick="Transaction.setFilter('all',this)">All</span>
+          <span class="filter-chip" onclick="Transaction.setFilter('sent',this)">Sent</span>
+          <span class="filter-chip" onclick="Transaction.setFilter('received',this)">Received</span>
+          <span class="filter-chip" onclick="Transaction.setFilter('withdrawal',this)">Withdrawals</span>
+        </div>
+        <div id="txList">
+          <p class="text-muted fs-sm text-center" style="padding:40px 0">No transactions yet</p>
+        </div>
+        <div class="disclaimer-footer">
+          <p>This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+        </div>
+      </section>
+
+      <!-- ====== PROFILE SECTION ====== -->
+      <section class="section-content" id="profileSection">
+        <div class="card" style="padding:0;overflow:hidden">
+          <div class="profile-header-card">
+            <div class="profile-avatar" id="profileAvatar">U</div>
+            <div class="profile-username" id="profileName">User</div>
+            <div class="profile-email" id="profileEmail">user@email.com</div>
+            <div style="margin-top:10px;padding:6px 14px;background:var(--bg-input);border-radius:var(--radius-full);font-size:0.6875rem;color:var(--text-tertiary);font-family:monospace;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" id="profileAddr">0x0000...0000</div>
+          </div>
+        </div>
+
+        <!-- Referral -->
+        <div class="card">
+          <div class="flex items-center justify-between mb-8">
+            <span class="fw-600" style="font-size:0.875rem">Referral Code</span>
+            <button class="copy-share-btn secondary" style="flex:none;padding:6px 12px;font-size:0.75rem" onclick="Profile.copyReferral()">
+              <i data-lucide="copy" style="width:14px;height:14px"></i> Copy
+            </button>
+          </div>
+          <div style="font-size:1.25rem;font-weight:800;letter-spacing:0.1em;color:var(--accent-blue)" id="referralCode">--------</div>
+          <p class="text-muted fs-xs mt-8">Share this code. When someone signs up using it, both of you earn rewards.</p>
+        </div>
+
+        <!-- Settings -->
+        <div class="settings-group">
+          <div class="settings-item" onclick="Profile.toggleTheme()">
+            <div class="settings-item-icon"><i data-lucide="moon" style="width:18px;height:18px"></i></div>
+            <div class="settings-item-text">
+              <div class="settings-item-label">Dark Mode</div>
+              <div class="settings-item-sub">Toggle appearance</div>
+            </div>
+            <div class="toggle active" id="themeToggle"></div>
+          </div>
+          <div class="settings-item" onclick="UI.openModal('securityModal')">
+            <div class="settings-item-icon"><i data-lucide="shield-check" style="width:18px;height:18px"></i></div>
+            <div class="settings-item-text">
+              <div class="settings-item-label">Security</div>
+              <div class="settings-item-sub">2FA, sessions, device history</div>
+            </div>
+            <span class="settings-item-arrow"><i data-lucide="chevron-right" style="width:18px;height:18px"></i></span>
+          </div>
+          <div class="settings-item" onclick="UI.openModal('notifModal')">
+            <div class="settings-item-icon"><i data-lucide="bell" style="width:18px;height:18px"></i></div>
+            <div class="settings-item-text">
+              <div class="settings-item-label">Notifications</div>
+              <div class="settings-item-sub">Alerts & announcements</div>
+            </div>
+            <span class="settings-item-arrow"><i data-lucide="chevron-right" style="width:18px;height:18px"></i></span>
+          </div>
+        </div>
+
+        <div class="settings-group">
+          <div class="settings-item">
+            <div class="settings-item-icon"><i data-lucide="info" style="width:18px;height:18px"></i></div>
+            <div class="settings-item-text">
+              <div class="settings-item-label">About</div>
+              <div class="settings-item-sub">CryptoVault v1.0.0</div>
+            </div>
+            <span class="settings-item-arrow"><i data-lucide="chevron-right" style="width:18px;height:18px"></i></span>
+          </div>
+        </div>
+
+        <button class="btn-secondary" style="border-color:rgba(239,68,68,0.3);color:var(--accent-red)" onclick="Auth.signOut()">
+          <i data-lucide="log-out" style="width:16px;height:16px;display:inline;vertical-align:middle;margin-right:6px"></i>
+          Sign Out
+        </button>
+
+        <div class="disclaimer-footer mt-16">
+          <p>This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+        </div>
+      </section>
+
+      <!-- Bottom Nav -->
+      <nav class="bottom-nav" id="bottomNav">
+        <div class="nav-item active" data-tab="home" onclick="UI.switchTab('home')">
+          <span class="nav-dot"></span>
+          <i data-lucide="home" style="width:22px;height:22px"></i>
+          <span>Home</span>
+        </div>
+        <div class="nav-item" data-tab="markets" onclick="UI.switchTab('markets')">
+          <span class="nav-dot"></span>
+          <i data-lucide="trending-up" style="width:22px;height:22px"></i>
+          <span>Markets</span>
+        </div>
+        <div class="nav-item" data-tab="wallet" onclick="UI.switchTab('wallet')">
+          <span class="nav-dot"></span>
+          <i data-lucide="wallet" style="width:22px;height:22px"></i>
+          <span>Wallet</span>
+        </div>
+        <div class="nav-item" data-tab="activity" onclick="UI.switchTab('activity')">
+          <span class="nav-dot"></span>
+          <i data-lucide="clock" style="width:22px;height:22px"></i>
+          <span>Activity</span>
+        </div>
+        <div class="nav-item" data-tab="profile" onclick="UI.switchTab('profile')">
+          <span class="nav-dot"></span>
+          <i data-lucide="user" style="width:22px;height:22px"></i>
+          <span>Profile</span>
+        </div>
+      </nav>
+    </div>
+
+    <!-- ============ MODALS ============ -->
+
+    <!-- Send Modal -->
+    <div class="modal-overlay" id="sendModal" onclick="UI.closeModalOnOverlay(event,'sendModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Send Crypto</span>
+          <button class="modal-close" onclick="UI.closeModal('sendModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body">
+          <div id="sendFormView">
+            <div class="form-label">Select Coin</div>
+            <div class="coin-selector" id="sendCoinSelector"></div>
+            <div class="form-group">
+              <label class="form-label">Recipient Wallet Address</label>
+              <input type="text" class="form-input" id="sendAddress" placeholder="0x...">
+            </div>
+            <div class="form-group">
+              <label class="form-label">Amount</label>
+              <input type="number" class="form-input" id="sendAmount" placeholder="0.00" step="any" min="0" oninput="Transaction.updateSendPreview()">
+              <div class="flex justify-between mt-8">
+                <span class="text-muted fs-xs">Available: <span id="sendAvailable">0</span></span>
+                <span class="text-blue fs-xs fw-600" style="cursor:pointer" onclick="Transaction.sendMax()">MAX</span>
+              </div>
+            </div>
+            <div class="card" style="background:var(--bg-input);border:none;padding:12px 14px;margin-bottom:16px">
+              <div class="flex justify-between mb-8">
+                <span class="text-muted fs-sm">INR Value</span>
+                <span class="fw-600 fs-sm" id="sendInrValue">₹0.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted fs-sm">Network Fee</span>
+                <span class="fw-600 fs-sm text-green">Free</span>
+              </div>
+            </div>
+            <button class="btn-primary" id="sendBtn" onclick="Transaction.send()">Send</button>
+          </div>
+          <div id="sendSuccessView" class="hidden">
+            <div class="success-anim">
+              <div class="success-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div class="success-title">Transaction Submitted</div>
+              <div class="success-sub" id="sendSuccessSub">Your transfer is being processed</div>
+              <div class="card mt-16" style="text-align:left">
+                <div class="flex justify-between mb-8">
+                  <span class="text-muted fs-sm">TX Hash</span>
+                  <span class="fs-xs fw-600" style="font-family:monospace;max-width:200px;overflow:hidden;text-overflow:ellipsis" id="sendTxHash">-</span>
+                </div>
+                <div class="flex justify-between mb-8">
+                  <span class="text-muted fs-sm">Status</span>
+                  <span class="badge badge-pending">Pending</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted fs-sm">Confirmations</span>
+                  <span class="fs-sm fw-600" id="sendConfirmations">0/3</span>
+                </div>
+              </div>
+              <button class="btn-primary mt-16" onclick="UI.closeModal('sendModal');UI.switchTab('activity')">View Activity</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Receive Modal -->
+    <div class="modal-overlay" id="receiveModal" onclick="UI.closeModalOnOverlay(event,'receiveModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Receive Crypto</span>
+          <button class="modal-close" onclick="UI.closeModal('receiveModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="qr-container" id="qrContainer">
+            <canvas id="qrCanvas"></canvas>
+          </div>
+          <div class="wallet-addr-display" id="receiveAddr">Loading...</div>
+          <div class="copy-share-row">
+            <button class="copy-share-btn primary" onclick="Wallet.copyAddress()">
+              <i data-lucide="copy" style="width:16px;height:16px"></i> Copy Address
+            </button>
+            <button class="copy-share-btn secondary" onclick="Wallet.shareAddress()">
+              <i data-lucide="share-2" style="width:16px;height:16px"></i> Share
+            </button>
+          </div>
+          <p class="text-muted fs-xs text-center mt-16">Send only supported cryptocurrencies to this address. Sending unsupported tokens may result in permanent loss.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Withdraw Modal -->
+    <div class="modal-overlay" id="withdrawModal" onclick="UI.closeModalOnOverlay(event,'withdrawModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Withdraw to INR</span>
+          <button class="modal-close" onclick="UI.closeModal('withdrawModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body">
+          <!-- Withdraw Form -->
+          <div id="wdFormView">
+            <div class="form-label">Select Coin to Withdraw</div>
+            <div class="coin-selector" id="wdCoinSelector"></div>
+            <div class="form-group">
+              <label class="form-label">Amount (Crypto)</label>
+              <input type="number" class="form-input" id="wdAmount" placeholder="0.00" step="any" min="0" oninput="Withdrawal.updatePreview()">
+              <div class="flex justify-between mt-8">
+                <span class="text-muted fs-xs">Available: <span id="wdAvailable">0</span></span>
+                <span class="text-blue fs-xs fw-600" style="cursor:pointer" onclick="Withdrawal.wdMax()">MAX</span>
+              </div>
+            </div>
+            <div class="card" style="background:var(--bg-input);border:none;padding:12px 14px;margin-bottom:16px">
+              <div class="flex justify-between mb-8">
+                <span class="text-muted fs-sm">You'll Receive (approx.)</span>
+                <span class="fw-600 fs-sm" id="wdInrValue">₹0.00</span>
+              </div>
+              <div class="flex justify-between">
+                <span class="text-muted fs-sm">Conversion Rate</span>
+                <span class="fs-sm fw-600" id="wdRate">-</span>
+              </div>
+            </div>
+            <div class="form-label mb-8">Withdrawal Method</div>
+            <div class="flex gap-8 mb-16">
+              <button class="filter-chip active" id="wdMethodUpi" onclick="Withdrawal.setMethod('upi')">UPI</button>
+              <button class="filter-chip" id="wdMethodBank" onclick="Withdrawal.setMethod('bank')">Bank Transfer</button>
+            </div>
+            <!-- UPI Fields -->
+            <div id="wdUpiFields">
+              <div class="form-group">
+                <label class="form-label">UPI ID</label>
+                <input type="text" class="form-input" id="wdUpiId" placeholder="yourname@upi">
+              </div>
+            </div>
+            <!-- Bank Fields -->
+            <div id="wdBankFields" class="hidden">
+              <div class="form-group">
+                <label class="form-label">Bank Name</label>
+                <input type="text" class="form-input" id="wdBankName" placeholder="State Bank of India">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Account Holder Name</label>
+                <input type="text" class="form-input" id="wdHolderName" placeholder="Full name">
+              </div>
+              <div class="form-group">
+                <label class="form-label">Account Number</label>
+                <input type="text" class="form-input" id="wdAccNumber" placeholder="XXXXXXXXXXXX">
+              </div>
+              <div class="form-group">
+                <label class="form-label">IFSC Code</label>
+                <input type="text" class="form-input" id="wdIfsc" placeholder="SBIN0001234">
+              </div>
+            </div>
+            <p class="text-muted fs-xs mb-12" style="line-height:1.6">This platform is a demo wallet simulator for educational and entertainment purposes only. No real cryptocurrency transactions or banking transfers occur here.</p>
+            <button class="btn-primary" id="wdBtn" onclick="Withdrawal.submit()">Submit Withdrawal</button>
+          </div>
+          <!-- Withdraw Success/Processing -->
+          <div id="wdSuccessView" class="hidden">
+            <div class="success-anim">
+              <div class="success-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+              </div>
+              <div class="success-title">Withdrawal Submitted</div>
+              <div class="success-sub">Your withdrawal request has been submitted successfully.</div>
+              <div class="card mt-16" style="text-align:left">
+                <div class="flex justify-between mb-8">
+                  <span class="text-muted fs-sm">Amount</span>
+                  <span class="fw-600 fs-sm" id="wdSuccessAmount">-</span>
+                </div>
+                <div class="flex justify-between mb-8">
+                  <span class="text-muted fs-sm">Method</span>
+                  <span class="fs-sm fw-600" id="wdSuccessMethod">-</span>
+                </div>
+                <div class="flex justify-between mb-8">
+                  <span class="text-muted fs-sm">Status</span>
+                  <span class="badge badge-processing">Processing</span>
+                </div>
+                <div class="flex justify-between">
+                  <span class="text-muted fs-sm">Estimated Arrival</span>
+                  <span class="fs-sm fw-600">3 Business Days</span>
+                </div>
+              </div>
+              <p class="text-muted fs-xs mt-12" style="line-height:1.6;text-align:center">Your crypto assets have been converted into INR and deducted from your wallet balance. Funds are currently being processed.</p>
+              <div class="wd-timeline mt-16">
+                <div class="wd-timeline-step done">
+                  <div class="wd-timeline-dot"></div>
+                  <div>
+                    <div class="wd-timeline-title">Request Submitted</div>
+                    <div class="wd-timeline-sub">Withdrawal initiated</div>
+                  </div>
+                </div>
+                <div class="wd-timeline-step active">
+                  <div class="wd-timeline-dot"></div>
+                  <div>
+                    <div class="wd-timeline-title">Processing</div>
+                    <div class="wd-timeline-sub" id="wdProcessingDays">3 days remaining</div>
+                  </div>
+                </div>
+                <div class="wd-timeline-step">
+                  <div class="wd-timeline-dot"></div>
+                  <div>
+                    <div class="wd-timeline-title">Funds Delivered</div>
+                    <div class="wd-timeline-sub">Arrives to your account</div>
+                  </div>
+                </div>
+              </div>
+              <div class="progress-bar"><div class="progress-fill" id="wdProgress" style="width:33%"></div></div>
+              <button class="btn-primary mt-16" onclick="UI.closeModal('withdrawModal')">Done</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Notification Modal -->
+    <div class="modal-overlay" id="notifModal" onclick="UI.closeModalOnOverlay(event,'notifModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Notifications</span>
+          <button class="modal-close" onclick="UI.closeModal('notifModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body" id="notifList">
+          <p class="text-muted fs-sm text-center" style="padding:30px 0">No notifications</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Security Modal -->
+    <div class="modal-overlay" id="securityModal" onclick="UI.closeModalOnOverlay(event,'securityModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Security</span>
+          <button class="modal-close" onclick="UI.closeModal('securityModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body">
+          <div class="text-center mb-16">
+            <div class="security-score-ring">
+              <svg width="100" height="100" viewBox="0 0 100 100">
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--border-color)" stroke-width="8"/>
+                <circle cx="50" cy="50" r="42" fill="none" stroke="var(--accent-green)" stroke-width="8" stroke-dasharray="264" stroke-dashoffset="66" stroke-linecap="round"/>
+              </svg>
+              <div class="security-score-val">75%</div>
+            </div>
+            <div class="fw-600">Security Score</div>
+            <p class="text-muted fs-xs mt-8">Good - Enable 2FA to increase your score</p>
+          </div>
+          <div class="settings-group">
+            <div class="settings-item" onclick="Profile.toggle2FA()">
+              <div class="settings-item-icon"><i data-lucide="smartphone" style="width:18px;height:18px"></i></div>
+              <div class="settings-item-text">
+                <div class="settings-item-label">Two-Factor Authentication</div>
+                <div class="settings-item-sub" id="twoFaStatus">Disabled</div>
+              </div>
+              <div class="toggle" id="twoFaToggle"></div>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-icon"><i data-lucide="monitor" style="width:18px;height:18px"></i></div>
+              <div class="settings-item-text">
+                <div class="settings-item-label">Active Sessions</div>
+                <div class="settings-item-sub">1 device</div>
+              </div>
+              <span class="settings-item-arrow"><i data-lucide="chevron-right" style="width:18px;height:18px"></i></span>
+            </div>
+            <div class="settings-item">
+              <div class="settings-item-icon"><i data-lucide="history" style="width:18px;height:18px"></i></div>
+              <div class="settings-item-text">
+                <div class="settings-item-label">Login History</div>
+                <div class="settings-item-sub">Last login: Just now</div>
+              </div>
+              <span class="settings-item-arrow"><i data-lucide="chevron-right" style="width:18px;height:18px"></i></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TX Detail Modal -->
+    <div class="modal-overlay" id="txDetailModal" onclick="UI.closeModalOnOverlay(event,'txDetailModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title">Transaction Details</span>
+          <button class="modal-close" onclick="UI.closeModal('txDetailModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body" id="txDetailBody"></div>
+      </div>
+    </div>
+
+    <!-- Coin Detail Modal -->
+    <div class="modal-overlay" id="coinDetailModal" onclick="UI.closeModalOnOverlay(event,'coinDetailModal')">
+      <div class="modal-panel">
+        <div class="modal-handle"></div>
+        <div class="modal-header">
+          <span class="modal-title" id="coinDetailTitle">Coin</span>
+          <button class="modal-close" onclick="UI.closeModal('coinDetailModal')"><i data-lucide="x" style="width:18px;height:18px"></i></button>
+        </div>
+        <div class="modal-body" id="coinDetailBody"></div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast">
+      <span id="toastIcon"></span>
+      <span id="toastMsg"></span>
+    </div>
+
+    <!-- FAB -->
+    <button class="fab" id="fabBtn" onclick="UI.openModal('sendModal')" style="display:none">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+    </button>
+
+  </div>
+
+  <!-- Supabase SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="app.js"></script>
+</body>
+</html>
