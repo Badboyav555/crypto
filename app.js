@@ -3,10 +3,9 @@
    ============================================ */
 
 // ── Supabase Configuration ──
-// REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
 const SUPABASE_URL = 'https://mhxeokmuceyibtbmeoak.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_crdLnlfyDOI1KOgqAK_bHQ_UkC400OS';
-/*
+
 let supabaseClient;
 try {
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -16,20 +15,7 @@ try {
 }
 
 const sb = supabaseClient;
-*/
-let supabaseClient = null;
 
-if (SUPABASE_URL !== 'SUPABASE_URL' && SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY') {
-  try {
-    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-  } catch (e) {
-    console.warn('Supabase init failed:', e);
-  }
-} else {
-  console.warn('Running in DEMO mode');
-}
-
-const sb = supabaseClient;
 // ── Coin Definitions ──
 const COINS = {
   BTC: { name: 'Bitcoin', symbol: 'BTC', color: '#F7931A', letter: 'B', geckoId: 'bitcoin', decimals: 8 },
@@ -163,7 +149,6 @@ const UI = {
   closeModal(id) {
     document.getElementById(id).classList.remove('active');
     document.body.style.overflow = '';
-    // Reset send modal
     if (id === 'sendModal') {
       document.getElementById('sendFormView').classList.remove('hidden');
       document.getElementById('sendSuccessView').classList.add('hidden');
@@ -185,28 +170,23 @@ const UI = {
     document.querySelectorAll('.nav-item').forEach(n => {
       n.classList.toggle('active', n.dataset.tab === tab);
     });
-    // Show FAB only on home/wallet
     const fab = document.getElementById('fabBtn');
     fab.style.display = (tab === 'home' || tab === 'wallet') ? 'flex' : 'none';
-    // Refresh data for tab
     if (tab === 'wallet') Wallet.renderWalletSection();
     if (tab === 'activity') Transaction.renderList();
     if (tab === 'markets') Market.render();
     if (tab === 'profile') Profile.render();
-    // Scroll to top
     window.scrollTo({ top: 0, behavior: 'smooth' });
   },
 
-  skeleton(show) {
-    // Toggle skeleton states
-  }
+  skeleton(show) {}
 };
+
 // ── Auth Module ──
 const Auth = {
   isSignUp: false,
 
   init() {
-    // Toggle between login/signup
     document.getElementById('authToggle').addEventListener('click', (e) => {
       if (e.target.id !== 'authToggleLink') return;
       Auth.isSignUp = !Auth.isSignUp;
@@ -234,8 +214,8 @@ const Auth = {
 
       try {
         if (state.isDemo) {
-          state.user = { id: DEMO_PROFILE.id, email: DEMO_PROFILE.email };
-          state.profile = { ...DEMO_PROFILE };
+          state.user = { id: DEMO_PROFILE.id, email: email || DEMO_PROFILE.email };
+          state.profile = { ...DEMO_PROFILE, email: email || DEMO_PROFILE.email, username: username || DEMO_PROFILE.username };
           state.wallet = { ...DEMO_WALLET };
           state.prices = { ...DEMO_PRICES };
           Auth.onLogin();
@@ -262,12 +242,12 @@ const Auth = {
           return;
         }
 
-        // ✅ FIX #1: Set state.user BEFORE calling loadUserData
         state.user = result.data.user;
-
         await Auth.loadUserData();
         Auth.onLogin();
+
       } catch (err) {
+        console.error('Auth error:', err);
         errEl.textContent = err.message || 'Authentication failed';
         errEl.classList.add('show');
         btn.disabled = false;
@@ -275,7 +255,6 @@ const Auth = {
       }
     });
 
-    // Check existing session
     Auth.checkSession();
   },
 
@@ -290,228 +269,73 @@ const Auth = {
     }
 
     try {
-      const { data: { session } } = await sb.auth.getSession();
-      if (session && session.user) {
-        state.user = session.user;
+      const { data, error } = await sb.auth.getSession();
+      if (error) throw error;
+      if (data && data.session && data.session.user) {
+        state.user = data.session.user;
         await Auth.loadUserData();
         Auth.onLogin();
       }
     } catch (e) {
-      console.warn('Session check failed', e);
+      console.warn('Session check failed:', e);
     }
   },
 
   async loadUserData() {
     if (state.isDemo) return;
-    if (!state.user) return; // ✅ Safety check
+    if (!state.user || !state.user.id) return;
 
-    const [profileRes, walletRes] = await Promise.all([
-      sb.from('profiles').select('*').eq('id', state.user.id).single(),
-      sb.from('wallets').select('*').eq('user_id', state.user.id).single()
-    ]);
+    try {
+      const [profileRes, walletRes] = await Promise.all([
+        sb.from('profiles').select('*').eq('id', state.user.id).single(),
+        sb.from('wallets').select('*').eq('user_id', state.user.id).single()
+      ]);
 
-    state.profile = profileRes.data;
-    state.wallet = walletRes.data;
+      state.profile = profileRes.data;
+      state.wallet = walletRes.data;
 
-    // ✅ FIX #2: Auto-create profile for new users
-    if (!state.profile) {
-      const newProfile = {
-        id: state.user.id,
-        username: state.user.user_metadata?.username || state.user.email?.split('@')[0] || 'User',
-        email: state.user.email || '',
-        avatar_url: '',
-        role: 'user',
-        referral_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase(),
-        created_at: new Date().toISOString()
-      };
-      const { data: createdProfile, error: profileErr } = await sb.from('profiles').insert(newProfile).select().single();
-      if (profileErr) {
-        console.error('Profile creation failed:', profileErr);
-      } else {
-        state.profile = createdProfile;
+      if (!state.profile) {
+        const p = {
+          id: state.user.id,
+          username: state.user.user_metadata?.username || state.user.email?.split('@')[0] || 'User',
+          email: state.user.email || '',
+          avatar_url: '',
+          role: 'user',
+          referral_code: 'CV' + Math.random().toString(36).substring(2, 8).toUpperCase(),
+          created_at: new Date().toISOString()
+        };
+        const { data } = await sb.from('profiles').insert(p).select().single();
+        if (data) state.profile = data;
       }
-    }
 
-    // ✅ FIX #3: Auto-create wallet for new users
-    if (!state.wallet) {
-      const newWallet = {
-        user_id: state.user.id,
-        btc_balance: 0,
-        eth_balance: 0,
-        usdt_balance: 0,
-        sol_balance: 0,
-        xrp_balance: 0,
-        doge_balance: 0,
-        bnb_balance: 0,
-        inr_balance: 0,
-        wallet_address: '0x' + Array.from({ length: 40 }, () => Math.floor(Math.random() * 16).toString(16)).join(''),
-        frozen: false,
-        created_at: new Date().toISOString()
-      };
-      const { data: createdWallet, error: walletErr } = await sb.from('wallets').insert(newWallet).select().single();
-      if (walletErr) {
-        console.error('Wallet creation failed:', walletErr);
-      } else {
-        state.wallet = createdWallet;
+      if (!state.wallet) {
+        const w = {
+          user_id: state.user.id,
+          btc_balance: 0, eth_balance: 0, usdt_balance: 0,
+          sol_balance: 0, xrp_balance: 0, doge_balance: 0, bnb_balance: 0,
+          inr_balance: 0,
+          wallet_address: '0x' + Array.from({length: 40}, () => Math.floor(Math.random() * 16).toString(16)).join(''),
+          frozen: false,
+          created_at: new Date().toISOString()
+        };
+        const { data } = await sb.from('wallets').insert(w).select().single();
+        if (data) state.wallet = data;
       }
+    } catch (e) {
+      console.error('loadUserData error:', e);
     }
-  },
-
-/*  onLogin() {
-    // ✅ FIX #4: Safety check before proceeding
-    if (!state.user || !state.profile || !state.wallet) {
-      console.error('Missing data on login', { user: !!state.user, profile: !!state.profile, wallet: !!state.wallet });
-      UI.showToast('Failed to load user data. Please try again.', 'error');
-      Auth.signOut();
-      return;
-    }
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('mainApp').classList.remove('hidden');
-    App.init();
-  },*/
-onLogin() {
-    document.getElementById('authScreen').classList.add('hidden');
-    document.getElementById('mainApp').classList.remove('hidden');
-    App.init();
-},
-  async signOut() {
-    if (!state.isDemo && sb) {
-      try { await sb.auth.signOut(); } catch (e) { /* ignore */ }
-    }
-    state.user = null;
-    state.profile = null;
-    state.wallet = null;
-    document.getElementById('mainApp').classList.add('hidden');
-    document.getElementById('authScreen').classList.remove('hidden');
-    document.getElementById('authError').classList.remove('show');
-    document.getElementById('authBtn').disabled = false;
-    document.getElementById('authBtnText').textContent = 'Sign In';
-    // Reset to login mode
-    Auth.isSignUp = false;
-    document.getElementById('authTitle').textContent = 'Welcome Back';
-    document.getElementById('authSubtitle').textContent = 'Sign in to your CryptoVault wallet';
-    document.getElementById('authBtnText').textContent = 'Sign In';
-    document.getElementById('usernameGroup').style.display = 'none';
-    document.getElementById('authToggle').innerHTML = 'Don\'t have an account? <a id="authToggleLink" href="javascript:void(0)">Create one</a>';
-  }
-};
-
-// ── Auth Module ──
-/*
-const Auth = {
-  isSignUp: false,
-
-  init() {
-    const toggle = document.getElementById('authToggleLink');
-    toggle.addEventListener('click', () => {
-      Auth.isSignUp = !Auth.isSignUp;
-      document.getElementById('authTitle').textContent = Auth.isSignUp ? 'Create Account' : 'Welcome Back';
-      document.getElementById('authSubtitle').textContent = Auth.isSignUp ? 'Sign up for a new CryptoVault wallet' : 'Sign in to your CryptoVault wallet';
-      document.getElementById('authBtnText').textContent = Auth.isSignUp ? 'Create Account' : 'Sign In';
-      document.getElementById('usernameGroup').style.display = Auth.isSignUp ? 'block' : 'none';
-      document.getElementById('authToggle').innerHTML = Auth.isSignUp
-        ? 'Already have an account? <a id="authToggleLink">Sign in</a>'
-        : 'Don\'t have an account? <a id="authToggleLink">Create one</a>';
-      document.getElementById('authToggleLink').addEventListener('click', arguments.callee);
-    });
-
-    document.getElementById('authForm').addEventListener('submit', async (e) => {
-      e.preventDefault();
-      const email = document.getElementById('authEmail').value.trim();
-      const password = document.getElementById('authPassword').value;
-      const username = document.getElementById('authUsername').value.trim();
-      const errEl = document.getElementById('authError');
-      const btn = document.getElementById('authBtn');
-      const btnText = document.getElementById('authBtnText');
-
-      errEl.classList.remove('show');
-      btn.disabled = true;
-      btnText.innerHTML = '<span class="spinner"></span>';
-
-      try {
-        if (state.isDemo) {
-          // Demo mode - just log in
-          state.user = { id: DEMO_PROFILE.id, email: DEMO_PROFILE.email };
-          state.profile = { ...DEMO_PROFILE };
-          state.wallet = { ...DEMO_WALLET };
-          state.prices = { ...DEMO_PRICES };
-          Auth.onLogin();
-          return;
-        }
-
-        let result;
-        if (Auth.isSignUp) {
-          result = await sb.auth.signUp({
-            email, password,
-            options: { data: { username: username || email.split('@')[0] } }
-          });
-        } else {
-          result = await sb.auth.signInWithPassword({ email, password });
-        }
-
-        if (result.error) throw result.error;
-
-        if (result.data.user && !result.data.session) {
-          errEl.textContent = 'Please check your email to verify your account.';
-          errEl.classList.add('show');
-          btn.disabled = false;
-          btnText.textContent = Auth.isSignUp ? 'Create Account' : 'Sign In';
-          return;
-        }
-
-        await Auth.loadUserData();
-        Auth.onLogin();
-      } catch (err) {
-        errEl.textContent = err.message || 'Authentication failed';
-        errEl.classList.add('show');
-        btn.disabled = false;
-        btnText.textContent = Auth.isSignUp ? 'Create Account' : 'Sign In';
-      }
-    });*/
-
-/*    // Check existing session
-    Auth.checkSession();
-  },
-
-  async checkSession() {
-    if (state.isDemo) {
-      // Auto-login in demo mode
-      state.user = { id: DEMO_PROFILE.id, email: DEMO_PROFILE.email };
-      state.profile = { ...DEMO_PROFILE };
-      state.wallet = { ...DEMO_WALLET };
-      state.prices = { ...DEMO_PRICES };
-      Auth.onLogin();
-      return;
-    }
-
-    const { data: { session } } = await sb.auth.getSession();
-    if (session) {
-      state.user = session.user;
-      await Auth.loadUserData();
-      Auth.onLogin();
-    }
-  },
-
-  async loadUserData() {
-    if (state.isDemo) return;
-
-    const [profileRes, walletRes] = await Promise.all([
-      sb.from('profiles').select('*').eq('id', state.user.id).single(),
-      sb.from('wallets').select('*').eq('user_id', state.user.id).single()
-    ]);
-
-    state.profile = profileRes.data;
-    state.wallet = walletRes.data;
   },
 
   onLogin() {
     document.getElementById('authScreen').classList.add('hidden');
     document.getElementById('mainApp').classList.remove('hidden');
-    App.init();
+    if (typeof App !== 'undefined' && App.init) App.init();
   },
 
   async signOut() {
-    if (!state.isDemo) await sb.auth.signOut();
+    if (!state.isDemo && sb) {
+      try { await sb.auth.signOut(); } catch (e) {}
+    }
     state.user = null;
     state.profile = null;
     state.wallet = null;
@@ -520,8 +344,15 @@ const Auth = {
     document.getElementById('authError').classList.remove('show');
     document.getElementById('authBtn').disabled = false;
     document.getElementById('authBtnText').textContent = 'Sign In';
+    Auth.isSignUp = false;
+    document.getElementById('authTitle').textContent = 'Welcome Back';
+    document.getElementById('authSubtitle').textContent = 'Sign in to your CryptoVault wallet';
+    document.getElementById('usernameGroup').style.display = 'none';
+    document.getElementById('authToggle').innerHTML = 'Don\'t have an account? <a id="authToggleLink" href="javascript:void(0)">Create one</a>';
   }
-};*/
+};
+
+// ── Market Module ──
 
 // ── Market Module ──
 const Market = {
