@@ -6,7 +6,7 @@
 // REPLACE THESE WITH YOUR ACTUAL SUPABASE CREDENTIALS
 const SUPABASE_URL = 'https://mhxeokmuceyibtbmeoak.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_crdLnlfyDOI1KOgqAK_bHQ_UkC400OS';
-
+/*
 let supabaseClient;
 try {
   supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -16,7 +16,20 @@ try {
 }
 
 const sb = supabaseClient;
+*/
+let supabaseClient = null;
 
+if (SUPABASE_URL !== 'SUPABASE_URL' && SUPABASE_ANON_KEY !== 'SUPABASE_ANON_KEY') {
+  try {
+    supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  } catch (e) {
+    console.warn('Supabase init failed:', e);
+  }
+} else {
+  console.warn('Running in DEMO mode');
+}
+
+const sb = supabaseClient;
 // ── Coin Definitions ──
 const COINS = {
   BTC: { name: 'Bitcoin', symbol: 'BTC', color: '#F7931A', letter: 'B', geckoId: 'bitcoin', decimals: 8 },
